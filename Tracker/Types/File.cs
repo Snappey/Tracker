@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Newtonsoft.Json;
 using Tracker.Core;
 
 namespace Tracker.Types
@@ -13,9 +14,11 @@ namespace Tracker.Types
         private int _level;
         private Folder _parent;
         private FolderManager _manager;
+        private List<LexResult> _lex;
 
         private string[] _contents;
         public readonly string Contents; // TODO: determine if we should store it as a string array or a whole string
+
 
         public File(string path, string name, FolderManager manager, Folder parent, int level=-1)
         {
@@ -29,9 +32,37 @@ namespace Tracker.Types
             //GetContents(); 
         }
 
-        private void GetContents()
+        public string[] GetContents()
         {
-            _contents = System.IO.File.ReadAllLines(_path + "\\" + _name);
+            return System.IO.File.ReadAllLines(_path + "\\" + _name);
+        }
+
+        public string GetPath()
+        {
+            return _path;
+        }
+
+        public string GetName()
+        {
+            return _name;
+        }
+
+        public void SetLex(List<LexResult> _results)
+        {
+            _lex = _results;
+        }
+
+        public void WriteResults()
+        {
+            if (_lex != null)
+            {
+                string json = JsonConvert.SerializeObject(_lex);
+                System.IO.File.WriteAllText(Directory.GetCurrentDirectory() + "\\test-" + _name + ".txt", json);
+            }
+            else
+            {
+                Console.WriteLine("Tried to write a file, which has not been read! (" + _name + ")");
+            }
         }
 
         private void Log()
