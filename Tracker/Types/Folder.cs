@@ -33,7 +33,23 @@ namespace Tracker.Types
             }
 
             Log();
+            manager.AddFolder(this);
             Scan();
+        }
+
+        public List<File> GetFiles()
+        {
+            return _files;
+        }
+
+        public List<Folder> GetDirectories()
+        {
+            return _children;
+        }
+
+        public List<Folder> GetDirectoriesFlat()
+        {
+            return _manager.Folders;
         }
 
         private void Scan()
@@ -66,7 +82,7 @@ namespace Tracker.Types
                 if (_manager.GetExtensions().ContainsKey(file.Substring(file.LastIndexOf("."))))
                 {
                     filesList.Add(new File(_path, file.Substring(file.LastIndexOf("\\") + 1), _manager, this, _level));
-                    System.Threading.Thread.Sleep(500);
+
                 }
             }
             return filesList;
@@ -74,7 +90,7 @@ namespace Tracker.Types
 
         private void Log()
         {
-            Console.WriteLine("".PadRight(_level * 4) + "| Registered Folder: " + _path);
+            _manager.Log("".PadRight((_level - 1) * 4) + "| Registered Folder: " + _path);
         }
 
         private void CheckThreadStatus()

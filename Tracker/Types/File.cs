@@ -36,7 +36,7 @@ namespace Tracker.Types
 
         private void Log()
         {
-            Console.WriteLine("".PadRight(_level * 4) + " | --> Registered File: " + _name);
+            _manager.Log("".PadRight((_level - 1) * 4) + " | --> Registered File: " + _name);
         }
     }
 }

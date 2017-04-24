@@ -14,11 +14,15 @@ namespace Tracker.Core
 
         private Thread _thread;
         private Folder _root;
+        private Logger _logger;
 
+        public List<Folder> Folders = new List<Folder>(); // All scanned folders in one 1d list
 
         public FolderManager(string path)
         {
             _path = path;
+            _logger = new Logger(this);
+            _logger.SetFlag(LoggingFlags.Console); // Default Flags
         }
 
         #region Public Functions
@@ -76,18 +80,59 @@ namespace Tracker.Core
             return _extensions;
         }
 
+        public void AddFolder(Folder folder)
+        {
+            Folders.Add(folder);
+        }
+
+        public List<Folder> GetFoldersFlat()
+        {
+            return Folders;
+        }
+
+        public string GetName()
+        {
+            return _path;
+        }
+
+        public void Log(string log)
+        {
+            _logger.Log(log);
+        }
+
+        public void SetFlags(LoggingFlags flags)
+        {
+            _logger.SetFlag(flags);
+        }
+
         #endregion
 
         private void Thread()
         {
-            ScanFolderStructure();
-
+            BuildFolderStructure();
+            ReadFiles();
         }
 
-        private void ScanFolderStructure()
+        private void BuildFolderStructure()
         {
+            Log("Building FileStructure for " + _path + " ~ " + DateTime.Now);
             _root = new Folder(_path, _level, this);
+            Log("Finished Building FileStructure for " + _path + " ~ " + DateTime.Now);
         }
 
+        private void ReadFiles() // TODO: Come up with better names
+        {
+            Log("File Lexing Started! ~ " + DateTime.Now);
+            var folders =  _root.GetDirectoriesFlat();
+            foreach(Folder folder in folders)
+            {
+                var files = folder.GetFiles();
+                foreach (File file in files)
+                {
+                    
+                }
+            }
+            Log("File Lexing Finished! ~ " + DateTime.Now);
+        }
     }
 }
