@@ -10,6 +10,7 @@ namespace Tracker.Types
     internal class Folder
     {
         private string _path;
+        private string _name;
 
         private Folder _parent;
         private List<Folder> _children;
@@ -20,6 +21,7 @@ namespace Tracker.Types
         public Folder(string path, int level, FolderManager manager, Folder parent=null)
         {
             _path = path;
+            _name = path.Substring(path.LastIndexOf("\\"));
             _level = ++level;
             _manager = manager;
 
@@ -50,6 +52,16 @@ namespace Tracker.Types
         public List<Folder> GetDirectoriesFlat()
         {
             return _manager.Folders;
+        }
+
+        public string GetPath()
+        {
+            return _path;
+        }
+
+        public string GetName()
+        {
+            return _name;
         }
 
         private void Scan()

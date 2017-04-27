@@ -16,6 +16,7 @@ namespace Tracker.Core
         private Folder _root;
         private Logger _logger;
         private Lexer _lexer;
+        private Output _output;
 
         public List<Folder> Folders = new List<Folder>(); // All scanned folders in one 1d list
 
@@ -25,6 +26,7 @@ namespace Tracker.Core
             _logger = new Logger(this);
             _logger.SetFlag(LoggingFlags.Console); // Default Flags
             _lexer = new Lexer();
+            _output = new Output(this);
         }
 
         #region Public Functions
@@ -60,6 +62,16 @@ namespace Tracker.Core
             return ThreadState.Unstarted;
         }
 
+        public string GetPath()
+        {
+            return _path;
+        }
+
+        public string GetName()
+        {
+            return _path.Substring(_path.LastIndexOf("\\") + 1);
+        }
+
         public void AddExtension(string extension)
         {
             if (extension.StartsWith("."))
@@ -90,11 +102,6 @@ namespace Tracker.Core
         public List<Folder> GetFoldersFlat()
         {
             return Folders;
-        }
-
-        public string GetName()
-        {
-            return _path;
         }
 
         public void Log(string log)
@@ -132,11 +139,13 @@ namespace Tracker.Core
                 foreach (File file in files)
                 {
                     var results = _lexer.LexFile(file.GetContents(),file.GetPath() + "\\" + file.GetName());
-                    file.SetLex(results);
-                    file.WriteResults();
+                    file.SetResults(results);
+                    //file.WriteResults();
                 }
             }
             Log("File Lexing Finished! ~ " + DateTime.Now);
+
+            _output.Write();
         }
     }
 }

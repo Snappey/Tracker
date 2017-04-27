@@ -27,7 +27,7 @@ namespace Tracker.Core
         public Logger(FolderManager manager)
         {
             _manager = manager;
-            _name = manager.GetName().Substring(manager.GetName().LastIndexOf("\\"));
+            _name = manager.GetName();
             _path = Directory.GetCurrentDirectory() + _name + ".txt";
             CreateLogFile();
         }
