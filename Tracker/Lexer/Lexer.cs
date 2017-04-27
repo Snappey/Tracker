@@ -10,6 +10,7 @@ namespace Tracker
         Invalid,
         Function,
         Hook,
+        HookCall,
         Command,
         OpenDoc,
         CloseDoc,
@@ -19,13 +20,24 @@ namespace Tracker
         Notes,
     }
 
+    [Flags]
+    public enum LexType
+    {
+        Invalid,
+        Function,
+        Command,
+        Hook,
+        HookCall,
+    }
+
     class Lexer
     {
         private List<Token> _tokenDefinitions = new List<Token>();
 
         public Lexer() // TODO: allows for extension in token types / move these to a custom pre-defined token set
         {
-            _tokenDefinitions.Add(new Token(TokenType.Hook, "(hook.(a|A)dd)(.+\")(.+\")")); // This this can be improved by using the below one / change it to include UniqueID
+            _tokenDefinitions.Add(new Token(TokenType.Hook, "(hook.(a|A)dd)\\(\\\"(.+)\\\",\\s\\\"(.+)\\\""));
+            _tokenDefinitions.Add(new Token(TokenType.HookCall, "(hook.(Run|Call)\\(\\\")(.+)(\")"));
             _tokenDefinitions.Add(new Token(TokenType.Command, "(command.(a|A)?dd\\()(\")(\\w+)(\")"));
             _tokenDefinitions.Add(new Token(TokenType.OpenDoc, "(--\\[\\[)"));
             _tokenDefinitions.Add(new Token(TokenType.CloseDoc, "(\\]\\]--)"));
@@ -39,10 +51,19 @@ namespace Tracker
         private TokenType _lastToken;
         private LexResult _lastLexResult;
         private LexResult _activeLexResult;
+
         private List<LexResult> _results;
-        public List<LexResult> LexFile(string[] file, string path)
+        private List<LexResult> _funcs;
+        private List<LexResult> _hooks;
+        private List<LexResult> _cmds;
+
+        public FileResults LexFile(string[] file, string path)
         {
             _results = new List<LexResult>();
+            _funcs = new List<LexResult>();
+            _hooks = new List<LexResult>();
+            _cmds = new List<LexResult>();
+
             int linenum = 0;
             foreach (string line in file)
             {
@@ -65,7 +86,7 @@ namespace Tracker
                 switch (res.Type)
                 {
                     case TokenType.OpenDoc:
-                        _activeLexResult = new LexResult(); // OpenDoc token creates a new version of the LexResult
+                        _activeLexResult = new LexResult(); // OpenDoc token creates a new instance of LexResult
                         break;
                     case TokenType.CloseDoc:
                         if (_activeLexResult != null)
@@ -76,24 +97,98 @@ namespace Tracker
                                 Line = linenum.ToString(),
                                 Path = path,
                             };
+                            _activeLexResult.Documented = true;
                             _results.Add(_activeLexResult);
                             _lastLexResult = _activeLexResult;
                         }
                         _activeLexResult = null; // Clear it and wait for the next OpenDoc token to create a new instance
                         break;
-                    case TokenType.Command:
-                        if (_lastLexResult != null) _lastLexResult.Name = res.Groups[4].ToString();
-                        _lastLexResult = null; ;
+                    case TokenType.Command: // TODO: Cleanup below, lots of repeating
+                        if (_lastLexResult != null)
+                        {
+                            _lastLexResult.Name = res.Groups[4].ToString();
+                            _lastLexResult.Type = LexType.Command;
+                        }
+                        else
+                        {
+                            _cmds.Add(new LexResult() // TODO: concommand.Add("PrintOutside", ReturnOutside) Counts as undocumented even though the function is documented further up
+                            {
+                                Name = line,
+                                FileInfo = new FileInfo()
+                                {
+                                    Index = res.StartIndex.ToString(),
+                                    Line = linenum.ToString(),
+                                    Path = path,
+                                },
+                                Documented = false,
+                            });
+                        }
+                        _lastLexResult = null;
+                        break;
+                    case TokenType.HookCall:
+                        if (_lastLexResult != null)
+                        {
+                            _lastLexResult.Name = res.Groups[3].ToString();
+                            _lastLexResult.Type = LexType.HookCall;
+                        }
+                        else
+                        {
+                            _funcs.Add(new LexResult()
+                            {
+                                Name = line,
+                                FileInfo = new FileInfo()
+                                {
+                                    Index = res.StartIndex.ToString(),
+                                    Line = linenum.ToString(),
+                                    Path = path,
+                                },
+                                Documented = false,
+                            });
+                        }
+                        _lastLexResult = null;
                         break;
                     case TokenType.Hook:
                         if (_lastLexResult != null)
-                            _lastLexResult.Name = res.Groups[4]
-                                .ToString()
-                                .Substring(0, res.Groups[4].Length - 1); // TODO: Improve Regex, so we dont have to do these stupid substrings
+                        {
+                            _lastLexResult.Name = res.Groups[3] + " - " + res.Groups[4];
+                            _lastLexResult.Type = LexType.Hook;
+                        }
+                        else
+                        {
+                            _hooks.Add(new LexResult()
+                            {
+                                Name = line,
+                                FileInfo = new FileInfo()
+                                {
+                                    Index = res.StartIndex.ToString(),
+                                    Line = linenum.ToString(),
+                                    Path = path,
+                                },
+                                Documented = false,
+                            });
+                        }
                         _lastLexResult = null; ;
                         break;
                     case TokenType.Function:
-                        if (_lastLexResult != null) _lastLexResult.Name = res.Groups[3].ToString();
+                        if (_lastLexResult != null) // Check if a Result is still waiting function assignment
+                        {
+                            _lastLexResult.Name = res.Groups[3].ToString();
+                            _lastLexResult.Type = LexType.Function;
+                        }
+                        else
+                        {
+                            _funcs.Add(new LexResult()
+                            {
+                                Name = line,
+                                FileInfo = new FileInfo()
+                                {
+                                    Index = res.StartIndex.ToString(),
+                                    Line = linenum.ToString(),
+                                    Path = path,
+                                },
+                                Documented = false,
+                            });   
+                        }
                         _lastLexResult = null; ;
                         break;
                     case TokenType.Summary:
@@ -111,19 +206,36 @@ namespace Tracker
                 }
                 _lastToken = res.Type;
             }
-            return _results;
+            return new FileResults()
+            {
+                DocumentedResults = _results,
+
+                UnDocumentedFunctions =  _funcs,
+                UnDocumentedHooks = _hooks,
+                UnDocumentedCommands = _cmds,
+            };
         }
+    }
+
+    class FileResults
+    {
+        public List<LexResult> DocumentedResults = new List<LexResult>();
+
+        public List<LexResult> UnDocumentedFunctions = new List<LexResult>();
+        public List<LexResult> UnDocumentedHooks = new List<LexResult>();
+        public List<LexResult> UnDocumentedCommands = new List<LexResult>();
     }
 
     class LexResult
     {
         public string Name;
         public string Summary;
+        public bool Documented;
         public List<string> Parameters = new List<string>();
         public List<string> Return = new List<string>();
         public string Notes;
         public FileInfo FileInfo;
-
+        public LexType Type;
     }
 
     public class FileInfo

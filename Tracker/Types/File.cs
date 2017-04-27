@@ -14,7 +14,7 @@ namespace Tracker.Types
         private int _level;
         private Folder _parent;
         private FolderManager _manager;
-        private List<LexResult> _lex;
+        private FileResults _results;
 
         private string[] _contents;
         public readonly string Contents; // TODO: determine if we should store it as a string array or a whole string
@@ -47,17 +47,18 @@ namespace Tracker.Types
             return _name;
         }
 
-        public void SetLex(List<LexResult> _results)
+        public void SetResults(FileResults results)
         {
-            _lex = _results;
+            _results = results;
         }
 
-        public void WriteResults()
+        public void WriteResults(string path)
         {
+            var _lex = _results.DocumentedResults;
             if (_lex != null)
             {
-                string json = JsonConvert.SerializeObject(_lex);
-                System.IO.File.WriteAllText(Directory.GetCurrentDirectory() + "\\test-" + _name + ".txt", json);
+                string json = JsonConvert.SerializeObject(_results, Formatting.Indented);
+                System.IO.File.WriteAllText(path, json);
             }
             else
             {
